@@ -15,15 +15,18 @@ def classify_origin(inX,DataSet,labels,k):
 	sqdiffMat = diffMat**2
 	sqdistance = sqdiffMat.sum(axis = 1)
 	distance = sqdistance ** 0.5
-	print distance
+#	print distance
 	sorteddistance = distance.argsort()
-	#print sorteddistance
-	classCount = {}
+#	print type(sorteddistance)
+#	print list(sorteddistance)
+        classCount = {}
 	for i in range(k):
-		currentlabel =  labels[list(sorteddistance).index(i)]
-		classCount[currentlabel] = classCount.get(currentlabel,0) + 1
+            currentlabel = labels[sorteddistance[i]]	
+            #currentlabel =  labels[list(sorteddistance).index(i)]
+            classCount[currentlabel] = classCount.get(currentlabel,0) + 1
 	sortedclasscount = sorted(classCount.iteritems(),key = operator.itemgetter(1),reverse = True)
-	return sortedclasscount[0][0]
+	print sortedclasscount
+        return sortedclasscount[0][0]
 
 def autoNorm(DataSet):
 	minVals = DataSet.min(0)
@@ -70,9 +73,44 @@ def loadTrainingData(path):
 		dataset[i] = proc
 	print dataset
 	return dataset, labels
+def loadTrainingData1(path):
+    filenames = [i for i in os.listdir(path) if i.split('.')[-1] == 'txt']
+    filecount = len(filenames)
+    labels = []
+    dataset = zeros((filecount,1024))
+    for i in range(filecount):
+        labels.append(filenames[i].split('.')[0].split('_')[0])
+        f = open(path+'/'+filenames[i],'rb')
+        #content = f.read()
+        temp = zeros((32,32))
+        for j in range(32):
+            s = f.readline().strip()
+            temp[j] = [int(item) for item in s]
+        dataset[i] = temp.flatten()
+        processbar(i,filecount,20)
+
+    return dataset,labels
+
+def loadTestingData1(path):
+    filenames = [i for i in os.listdir(path) if i.split('.')[-1] == 'txt']
+    filecount = len(filenames)
+    result = []
+    dataset = zeros((filecount,1024))
+    for i in range(filecount):
+        result.append(filenames[i].split('.')[0].split('_')[0])
+        f = open(path+'/'+filenames[i],'rb')
+        #content = f.read()
+        temp = zeros((32,32))
+        for j in range(32):
+            s = f.readline().strip()
+            temp[j] = [int(item) for item in s]
+        dataset[i] = temp.flatten()
+        #processbar(j,filecount,20)
+    return dataset,filecount,result
+
 
 def loadTestingData(path):
-	filenames = [i for i in os.listdir(path) if i.split('.')[-1] == 'png']
+	filenames = [item for item in os.listdir(path) if item.split('.')[-1] == 'png']
 	print filenames
 	filecount = len(filenames)
 	expected = []
@@ -81,21 +119,34 @@ def loadTestingData(path):
 		expected.append(filenames[i].split('.')[0].split('_')[0])
 		im = Image.open(path+'/'+filenames[i]).convert('L')
 		proc, ranges, minval = autoNorm(array(im).flatten())
-		dataset[i] = proc
+                p = abs(proc-tile(1,shape(proc)))
+		dataset[i] = p
+        #processbar(i,filecount,20)
 	return dataset, filecount,expected
 
-def classify():
-	"""if not os.path.lexists('TrainingData/TrainedData'):
-		dataset, labels = loadTrainingData('TrainingData')
-		f = open('TrainingData/TrainedData','wb')
-		pickle.dump((dataset,labels),f)
-		f.close()
-	else:
-		(dataset,labels) = pickle.load(open('TrainingData/TrainedData','rb'))"""
-	dataset, labels = loadTrainingData('TrainingData')
-	test, testcount, expected = loadTestingData('TestingData')
-	for i in range(testcount):
-		result = classify_origin(test[i], dataset, labels, 3)
-		print "result is ",result," correct result is ", expected[i]
-	print "Done"
+def processbar(filled,total,length):
+    #print filled,total
+    filledcount = int(filled/float(total) * length)
+    percent = filled/float(total) *100
+    print '\x1b[1K'+"|"+filledcount*'\x1b[7m \x1b[0m'+"|"+ str(percent) + "%" 
 
+def classify():
+    dataset,labels = pickle.load(open('TrainedData','rb'))
+    test, testcount, expected = loadTestingData("TestingData")
+    correct = 0
+    for i in range(testcount):
+		result = classify_origin(test[i], dataset, labels, 20)
+                if result==expected[i]:
+                    correct+=1
+                print "result is ",result," correct result is ", expected[i]
+    
+    print correct/float(testcount)
+    print "Done"
+
+def generate_data():
+    dataset,labels = loadTrainingData1('testDigits')
+    f = open('TrainedData','wb')
+    pickle.dump((dataset,labels),f)
+    f.close()
+    print "Done"
+    
